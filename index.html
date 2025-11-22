@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>GPA Daddy</title>
+  <title>Minimum GPA Calculator - Trim II</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     * { box-sizing: border-box; font-family: system-ui, sans-serif; }
@@ -106,7 +106,7 @@
 </head>
 <body>
   <div class="container">
-    <h1>GPA Daddy</h1>
+    <h1>Minimum GPA Calculator - Trim II</h1>
 
     <p class="description">
       Enter <strong>ICA marks only</strong>. Pass marks will be added automatically where applicable
@@ -168,10 +168,14 @@
       { name: "OB2",  credits: 3,   icaMax: 100,maxMarks: 100, passMarks: 0  },
       { name: "SWD",  credits: 1.5, icaMax: 50, maxMarks: 50,  passMarks: 0  },
       { name: "VRCM", credits: 1.5, icaMax: 30, maxMarks: 50,  passMarks: 8  },
-      { name: "MOBD", credits: 3,   icaMax: 60, maxMarks: 100, passMarks: 16 }
+      { name: "MOBD", credits: 3,   icaMax: 60, maxMarks: 100, passMarks: 16 },
+      { name: "MM2",  credits: 3,   icaMax: 60, maxMarks: 100, passMarks: 16 }  // NEW
     ];
 
-    const frozenSubjects = ["MC", "OB2", "SWD"];
+    const frozenSubjects = ["MC", "OB2", "SWD"]; // fixed in max mode
+
+    let currentMode = "min";    // "min" or "max"
+    let minCalculated = false;  // to ensure max GPA uses frozen min grades
 
     function createRows() {
       const tbody = document.getElementById("coursesBody");
@@ -211,11 +215,27 @@
           <td><span class="grade grade-badge">–</span></td>
         `;
         tbody.appendChild(row);
+
+        // Auto-calc on typing ICA (min mode)
+        const icaInput = row.querySelector(".icaMarks");
+        icaInput.addEventListener("input", () => {
+          if (currentMode === "min") {
+            calculateMinGPA();
+          }
+        });
+
+        // Auto-calc on typing "If I score" (max mode)
+        const ifScoreInput = row.querySelector(".ifScoreMarks");
+        ifScoreInput.addEventListener("input", () => {
+          if (currentMode === "max") {
+            calculateMaxGPA();
+          }
+        });
       });
     }
 
     function getGradePoint(marks, maxMarks) {
-      // ✅ UPDATED 50 MARK SCALE
+      // 50-mark scale
       if (maxMarks === 50) {
         if (marks >= 45) return 10;
         if (marks >= 40) return 9;
@@ -227,7 +247,7 @@
         return 0;
       }
 
-      // ✅ 100 MARK SCALE (unchanged)
+      // 100-mark scale
       if (marks >= 90) return 10;
       if (marks >= 80) return 9;
       if (marks >= 70) return 8;
@@ -238,7 +258,6 @@
       return 0;
     }
 
-    // ✅ UPDATED GRADE MAPPING
     function gradeFromPoint(gp) {
       if (gp === 10) return "O";
       if (gp === 9)  return "A+";
@@ -252,6 +271,7 @@
 
     // ----- Modes -----
     function switchToMinMode() {
+      currentMode = "min";
       document.getElementById("marksHeader").innerHTML =
         `Adjusted Marks<br><span style="font-weight:400;font-size:0.8rem;">(ICA + Pass Marks)</span>`;
       document.getElementById("totalHeader").style.display = "none";
@@ -259,14 +279,20 @@
       document.getElementById("maxClearBtn").style.display = "none";
 
       document.querySelectorAll("#coursesBody tr").forEach(row => {
-        row.querySelector(".icaMarks").disabled = false;
-        row.querySelector(".adjustedMarks").style.display = "inline";
-        row.querySelector(".ifScoreMarks").style.display = "none";
-        row.querySelector(".totalMarksCell").style.display = "none";
+        const icaInput = row.querySelector(".icaMarks");
+        const ifScoreInput = row.querySelector(".ifScoreMarks");
+        const adjustedSpan = row.querySelector(".adjustedMarks");
+        const totalCell = row.querySelector(".totalMarksCell");
+
+        icaInput.disabled = false;
+        adjustedSpan.style.display = "inline";
+        ifScoreInput.style.display = "none";
+        totalCell.style.display = "none";
       });
     }
 
     function switchToMaxMode() {
+      currentMode = "max";
       document.getElementById("marksHeader").textContent = "If I score";
       document.getElementById("totalHeader").style.display = "table-cell";
       document.getElementById("gpaLabel").textContent = "Your Maximum GPA:";
@@ -274,31 +300,37 @@
 
       document.querySelectorAll("#coursesBody tr").forEach(row => {
         const subjName = row.cells[0].textContent.trim();
+        const icaInput = row.querySelector(".icaMarks");
+        const ifScoreInput = row.querySelector(".ifScoreMarks");
+        const adjustedSpan = row.querySelector(".adjustedMarks");
+        const totalCell = row.querySelector(".totalMarksCell");
+        const gradeSpan = row.querySelector(".grade");
+        const totalMarksSpan = row.querySelector(".totalMarks");
 
-        row.querySelector(".icaMarks").disabled = true;
-        row.querySelector(".adjustedMarks").style.display = "none";
-        row.querySelector(".ifScoreMarks").style.display = "inline";
-        row.querySelector(".totalMarksCell").style.display = "table-cell";
+        icaInput.disabled = true;
+        adjustedSpan.style.display = "none";
+        ifScoreInput.style.display = "inline";
+        totalCell.style.display = "table-cell";
 
-        row.querySelector(".totalMarks").textContent = "–";
-
+        totalMarksSpan.textContent = "–";
         if (!frozenSubjects.includes(subjName)) {
-          row.querySelector(".grade").textContent = "–";
+          gradeSpan.textContent = "–";
         }
 
         if (frozenSubjects.includes(subjName)) {
-          row.querySelector(".ifScoreMarks").disabled = true;
-          row.querySelector(".ifScoreMarks").placeholder = "N/A";
+          ifScoreInput.disabled = true;
+          ifScoreInput.placeholder = "N/A";
         } else {
-          row.querySelector(".ifScoreMarks").disabled = false;
+          ifScoreInput.disabled = false;
+          const limit = row.dataset.ifScoreMax;
+          ifScoreInput.placeholder = `0-${limit}`;
         }
       });
     }
 
     // ----- Minimum GPA -----
     function calculateMinGPA() {
-      const
-rows = document.querySelectorAll("#coursesBody tr");
+      const rows = document.querySelectorAll("#coursesBody tr");
       let totalCredits = 0, totalWeightedPoints = 0;
       let error = "";
 
@@ -309,9 +341,15 @@ rows = document.querySelectorAll("#coursesBody tr");
         const icaMax = parseFloat(row.dataset.icaMax);
         const passMarks = parseFloat(row.dataset.passMarks);
 
-        const ica = parseFloat(row.querySelector(".icaMarks").value);
-        if (isNaN(ica)) { error = "Please enter ICA marks for all subjects."; return; }
-        if (ica < 0 || ica > icaMax) {
+        const icaVal = row.querySelector(".icaMarks").value;
+        const ica = parseFloat(icaVal);
+
+        if (icaVal === "") { // allow partial typing
+          error = "";
+          return;
+        }
+
+        if (isNaN(ica) || ica < 0 || ica > icaMax) {
           error = `ICA marks for ${subjName} must be between 0 and ${icaMax}.`;
           return;
         }
@@ -322,25 +360,52 @@ rows = document.querySelectorAll("#coursesBody tr");
         row.querySelector(".adjustedMarks").textContent = adjusted.toFixed(0);
         row.querySelector(".grade").textContent = gradeFromPoint(gp);
         row.dataset.minGp = gp;
+        row.querySelector(".totalMarks").textContent = "–";
 
         totalCredits += credits;
         totalWeightedPoints += credits * gp;
       });
 
+      const errorBox = document.getElementById("errorBox");
+      const cgpaValue = document.getElementById("cgpaValue");
+      const totalCreditsSpan = document.getElementById("totalCredits");
+
+      const anyEmpty = Array.from(rows).some(row => {
+        return row.querySelector(".icaMarks").value === "";
+      });
+
       if (error) {
-        document.getElementById("errorBox").textContent = error;
+        errorBox.textContent = error;
+        cgpaValue.textContent = "–";
+        totalCreditsSpan.textContent = "0";
+        minCalculated = false;
+        return;
+      }
+
+      if (anyEmpty || totalCredits === 0) {
+        errorBox.textContent = "";
+        cgpaValue.textContent = "–";
+        totalCreditsSpan.textContent = "0";
+        minCalculated = false;
+        return;
+      }
+
+      errorBox.textContent = "";
+      cgpaValue.textContent = (totalWeightedPoints / totalCredits).toFixed(2);
+      totalCreditsSpan.textContent = totalCredits.toFixed(1);
+      minCalculated = true;
+    }
+
+    // ----- Maximum GPA -----
+    function calculateMaxGPA() {
+      if (!minCalculated) {
+        document.getElementById("errorBox").textContent =
+          "Please calculate your minimum GPA first.";
         document.getElementById("cgpaValue").textContent = "–";
         document.getElementById("totalCredits").textContent = "0";
         return;
       }
 
-      document.getElementById("errorBox").textContent = "";
-      document.getElementById("cgpaValue").textContent = (totalWeightedPoints / totalCredits).toFixed(2);
-      document.getElementById("totalCredits").textContent = totalCredits.toFixed(1);
-    }
-
-    // ----- Maximum GPA -----
-    function calculateMaxGPA() {
       const rows = document.querySelectorAll("#coursesBody tr");
       let totalCredits = 0, totalWeightedPoints = 0;
       let error = "";
@@ -352,46 +417,80 @@ rows = document.querySelectorAll("#coursesBody tr");
         const icaMax = parseFloat(row.dataset.icaMax);
         const limit = parseFloat(row.dataset.ifScoreMax);
 
-        const ica = parseFloat(row.querySelector(".icaMarks").value);
-        if (isNaN(ica) || ica < 0 || ica > icaMax) {
+        const icaVal = row.querySelector(".icaMarks").value;
+        const ica = parseFloat(icaVal);
+
+        if (icaVal === "" || isNaN(ica) || ica < 0 || ica > icaMax) {
           error = `Please enter valid ICA marks for ${subjName}.`;
           return;
         }
 
         let gp, totalMarks;
+        const totalMarksSpan = row.querySelector(".totalMarks");
+        const gradeSpan = row.querySelector(".grade");
 
         if (frozenSubjects.includes(subjName)) {
-          const minGp = parseFloat(row.dataset.minGp);
-          totalMarks = Math.min(ica, maxMarks);
-          row.querySelector(".totalMarks").textContent = totalMarks.toFixed(0);
-          row.querySelector(".grade").textContent = gradeFromPoint(minGp);
-          gp = minGp;
-        } else {
-          const score = parseFloat(row.querySelector(".ifScoreMarks").value);
-          if (isNaN(score) || score < 0 || score > limit) {
-            error = `Please enter valid 'If I score' marks for ${subjName}.`;
+          if (row.dataset.minGp === undefined) {
+            error = "Please calculate your minimum GPA first.";
             return;
           }
+          const minGp = parseFloat(row.dataset.minGp);
+          totalMarks = Math.min(ica, maxMarks);
+          totalMarksSpan.textContent = totalMarks.toFixed(0);
+          gradeSpan.textContent = gradeFromPoint(minGp);
+          gp = minGp;
+        } else {
+          const ifScoreVal = row.querySelector(".ifScoreMarks").value;
+          const score = parseFloat(ifScoreVal);
+
+          if (ifScoreVal === "") {
+            error = "";
+            return;
+          }
+
+          if (isNaN(score) || score < 0 || score > limit) {
+            error = `'If I score' for ${subjName} must be between 0 and ${limit}.`;
+            return;
+          }
+
           totalMarks = Math.min(ica + score, maxMarks);
-          row.querySelector(".totalMarks").textContent = totalMarks.toFixed(0);
+          totalMarksSpan.textContent = totalMarks.toFixed(0);
           gp = getGradePoint(totalMarks, maxMarks);
-          row.querySelector(".grade").textContent = gradeFromPoint(gp);
+          gradeSpan.textContent = gradeFromPoint(gp);
         }
 
         totalCredits += credits;
         totalWeightedPoints += credits * gp;
       });
 
+      const errorBox = document.getElementById("errorBox");
+      const cgpaValue = document.getElementById("cgpaValue");
+      const totalCreditsSpan = document.getElementById("totalCredits");
+
+      const anyEmptyIfScore = Array.from(rows).some(row => {
+        const subjName = row.cells[0].textContent.trim();
+        const ifScoreInput = row.querySelector(".ifScoreMarks");
+        if (frozenSubjects.includes(subjName)) return false;
+        return ifScoreInput.value === "";
+      });
+
       if (error) {
-        document.getElementById("errorBox").textContent = error;
-        document.getElementById("cgpaValue").textContent = "–";
-        document.getElementById("totalCredits").textContent = "0";
+        errorBox.textContent = error;
+        cgpaValue.textContent = "–";
+        totalCreditsSpan.textContent = "0";
         return;
       }
 
-      document.getElementById("errorBox").textContent = "";
-      document.getElementById("cgpaValue").textContent = (totalWeightedPoints / totalCredits).toFixed(2);
-      document.getElementById("totalCredits").textContent = totalCredits.toFixed(1);
+      if (anyEmptyIfScore || totalCredits === 0) {
+        errorBox.textContent = "";
+        cgpaValue.textContent = "–";
+        totalCreditsSpan.textContent = "0";
+        return;
+      }
+
+      errorBox.textContent = "";
+      cgpaValue.textContent = (totalWeightedPoints / totalCredits).toFixed(2);
+      totalCreditsSpan.textContent = totalCredits.toFixed(1);
     }
 
     // ----- Button handlers -----
@@ -404,29 +503,51 @@ rows = document.querySelectorAll("#coursesBody tr");
     }
 
     function handleMaxClick() {
+      if (!minCalculated) {
+        document.getElementById("errorBox").textContent =
+          "Please calculate your minimum GPA first.";
+        return;
+      }
       switchToMaxMode();
       calculateMaxGPA();
     }
 
     // Global reset
     function clearFields() {
-      document.querySelectorAll("#coursesBody tr").forEach(row => {
-        row.querySelector(".icaMarks").value = "";
-        row.querySelector(".icaMarks").disabled = false;
+      const rows = document.querySelectorAll("#coursesBody tr");
+      rows.forEach(row => {
+        const subjName = row.cells[0].textContent.trim();
+        const icaInput = row.querySelector(".icaMarks");
+        const adjustedSpan = row.querySelector(".adjustedMarks");
+        const ifScoreInput = row.querySelector(".ifScoreMarks");
+        const totalMarksSpan = row.querySelector(".totalMarks");
+        const totalCell = row.querySelector(".totalMarksCell");
+        const gradeSpan = row.querySelector(".grade");
 
-        row.querySelector(".adjustedMarks").textContent = "–";
-        row.querySelector(".adjustedMarks").style.display = "inline";
+        icaInput.value = "";
+        icaInput.disabled = false;
 
-        row.querySelector(".ifScoreMarks").value = "";
-        row.querySelector(".ifScoreMarks").style.display = "none";
-        row.querySelector(".ifScoreMarks").disabled = false;
+        adjustedSpan.textContent = "–";
+        adjustedSpan.style.display = "inline";
 
-        row.querySelector(".totalMarks").textContent = "–";
-        row.querySelector(".totalMarksCell").style.display = "none";
+        ifScoreInput.value = "";
+        ifScoreInput.style.display = "none";
+        ifScoreInput.disabled = false;
+        const limit = row.dataset.ifScoreMax;
+        ifScoreInput.placeholder = `0-${limit}`;
+        if (frozenSubjects.includes(subjName)) {
+          ifScoreInput.placeholder = "0-0";
+        }
 
-        row.querySelector(".grade").textContent = "–";
+        totalMarksSpan.textContent = "–";
+        totalCell.style.display = "none";
+
+        gradeSpan.textContent = "–";
         delete row.dataset.minGp;
       });
+
+      currentMode = "min";
+      minCalculated = false;
 
       document.getElementById("cgpaValue").textContent = "–";
       document.getElementById("totalCredits").textContent = "0";
@@ -441,12 +562,17 @@ rows = document.querySelectorAll("#coursesBody tr");
 
     // Max-only reset
     function clearMaxFields() {
-      document.querySelectorAll("#coursesBody tr").forEach(row => {
+      const rows = document.querySelectorAll("#coursesBody tr");
+      rows.forEach(row => {
         const subjName = row.cells[0].textContent.trim();
-        row.querySelector(".ifScoreMarks").value = "";
-        row.querySelector(".totalMarks").textContent = "–";
+        const ifScoreInput = row.querySelector(".ifScoreMarks");
+        const totalMarksSpan = row.querySelector(".totalMarks");
+        const gradeSpan = row.querySelector(".grade");
+
+        ifScoreInput.value = "";
+        totalMarksSpan.textContent = "–";
         if (!frozenSubjects.includes(subjName)) {
-          row.querySelector(".grade").textContent = "–";
+          gradeSpan.textContent = "–";
         }
       });
 
