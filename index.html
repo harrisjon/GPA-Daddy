@@ -169,7 +169,7 @@
       { name: "SWD",  credits: 1.5, icaMax: 50, maxMarks: 50,  passMarks: 0  },
       { name: "VRCM", credits: 1.5, icaMax: 30, maxMarks: 50,  passMarks: 8  },
       { name: "MOBD", credits: 3,   icaMax: 60, maxMarks: 100, passMarks: 16 },
-      { name: "MM2",  credits: 3,   icaMax: 60, maxMarks: 100, passMarks: 16 }  // NEW
+      { name: "MM2",  credits: 3,   icaMax: 60, maxMarks: 100, passMarks: 16 }
     ];
 
     const frozenSubjects = ["MC", "OB2", "SWD"]; // fixed in max mode
@@ -369,6 +369,7 @@
       const errorBox = document.getElementById("errorBox");
       const cgpaValue = document.getElementById("cgpaValue");
       const totalCreditsSpan = document.getElementById("totalCredits");
+      const maxBtn = document.getElementById("maxBtn");
 
       const anyEmpty = Array.from(rows).some(row => {
         return row.querySelector(".icaMarks").value === "";
@@ -379,6 +380,7 @@
         cgpaValue.textContent = "–";
         totalCreditsSpan.textContent = "0";
         minCalculated = false;
+        maxBtn.style.display = "none";
         return;
       }
 
@@ -387,6 +389,7 @@
         cgpaValue.textContent = "–";
         totalCreditsSpan.textContent = "0";
         minCalculated = false;
+        maxBtn.style.display = "none";
         return;
       }
 
@@ -394,6 +397,7 @@
       cgpaValue.textContent = (totalWeightedPoints / totalCredits).toFixed(2);
       totalCreditsSpan.textContent = totalCredits.toFixed(1);
       minCalculated = true;
+      maxBtn.style.display = "inline-flex"; // ✅ show only when all valid
     }
 
     // ----- Maximum GPA -----
@@ -497,9 +501,7 @@
     function handleMinClick() {
       switchToMinMode();
       calculateMinGPA();
-      if (!document.getElementById("errorBox").textContent) {
-        document.getElementById("maxBtn").style.display = "inline-flex";
-      }
+      // visibility of maxBtn now controlled inside calculateMinGPA()
     }
 
     function handleMaxClick() {
